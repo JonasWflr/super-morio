@@ -4,7 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Super Morio</title>
-    <meta name="description" content="A snowy, cross-country skiing jump-and-run inspired by classic 8-bit platformers." />
+    <meta
+      name="description"
+      content="A snowy, cross-country skiing jump-and-run inspired by classic 8-bit platformers."
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -25,19 +28,44 @@
         <canvas id="game" width="384" height="216"></canvas>
         <div class="overlay" id="overlay">
           <div class="card">
-            <h1>Super Morio</h1>
-            <p class="muted">A tiny snowy jump-and-run on skis.</p>
-            <ul>
-              <li><kbd>Space</kbd> / <kbd>↑</kbd> to jump</li>
-              <li><kbd>←</kbd>/<kbd>→</kbd> to slow down / speed up</li>
-              <li><kbd>R</kbd> to restart after a crash</li>
-              <li>On touch: tap to jump</li>
-            </ul>
-            <div class="row">
-              <button id="btnStart" class="btn btn--primary">Start</button>
-              <button id="btnMute" class="btn" aria-pressed="false">Sound: Off</button>
+            <h1 id="overlayTitle">Super Morio</h1>
+            <p id="overlaySubtitle" class="muted">A tiny snowy jump-and-run on skis.</p>
+
+            <div id="overlayBodyTitle">
+              <ul>
+                <li><kbd>Space</kbd> / <kbd>↑</kbd> to jump</li>
+                <li><kbd>←</kbd>/<kbd>→</kbd> to slow down / speed up</li>
+                <li>On touch: tap to jump</li>
+              </ul>
+              <div class="row">
+                <button id="btnStart" class="btn btn--primary">Start</button>
+                <button id="btnMute" class="btn" aria-pressed="false">Sound: Off</button>
+              </div>
+              <p class="muted small">Tip: hit ramps for longer jumps, grab flags, avoid trees &amp; rocks.</p>
             </div>
-            <p class="muted small">Tip: hit ramps for longer jumps, grab flags, avoid trees &amp; rocks.</p>
+
+            <div id="overlayBodyQuiz" class="quiz" hidden>
+              <div class="quiz__prompt">
+                Solve this to continue:
+                <div class="quiz__q" id="quizQuestion">—</div>
+              </div>
+              <form id="quizForm" class="quiz__form" autocomplete="off">
+                <input
+                  id="quizAnswer"
+                  class="quiz__input"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  type="text"
+                  placeholder="Answer"
+                  aria-label="Math answer"
+                />
+                <button class="btn btn--primary" type="submit">Submit</button>
+              </form>
+              <p id="quizFeedback" class="muted small" aria-live="polite"></p>
+              <div class="row">
+                <button id="btnGiveUp" class="btn" type="button">Back to start</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

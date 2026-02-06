@@ -3,8 +3,17 @@ const ctx = canvas.getContext("2d", { alpha: false });
 
 const ui = {
   overlay: document.getElementById("overlay"),
+  overlayTitle: document.getElementById("overlayTitle"),
+  overlaySubtitle: document.getElementById("overlaySubtitle"),
+  overlayBodyTitle: document.getElementById("overlayBodyTitle"),
+  overlayBodyQuiz: document.getElementById("overlayBodyQuiz"),
   btnStart: document.getElementById("btnStart"),
   btnMute: document.getElementById("btnMute"),
+  btnGiveUp: document.getElementById("btnGiveUp"),
+  quizQuestion: document.getElementById("quizQuestion"),
+  quizAnswer: document.getElementById("quizAnswer"),
+  quizFeedback: document.getElementById("quizFeedback"),
+  quizForm: document.getElementById("quizForm"),
   score: document.getElementById("score"),
   best: document.getElementById("best"),
   speed: document.getElementById("speed"),
@@ -59,22 +68,62 @@ function beepCrash() {
 const keys = new Set();
 window.addEventListener("keydown", (e) => {
   keys.add(e.code);
+
+  const isJumpKey = e.code === "Space" || e.code === "ArrowUp";
+  if (isJumpKey && !e.repeat) state.input.jumpQueued = true;
+
   if (["Space", "ArrowUp", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+
+  if (state.mode === "title" && (e.code === "Enter" || e.code === "Space")) {
+    e.preventDefault();
+    startGame();
+  }
 });
 window.addEventListener("keyup", (e) => keys.delete(e.code));
 
 canvas.addEventListener("pointerdown", () => {
   if (state.mode === "title") startGame();
-  state.input.jumpQueued = true;
+  if (state.mode === "running") state.input.jumpQueued = true;
 });
 
 ui.btnStart.addEventListener("click", () => startGame());
+ui.btnGiveUp.addEventListener("click", () => backToStart());
 ui.btnMute.addEventListener("click", async () => {
   audioEnabled = !audioEnabled;
   ui.btnMute.setAttribute("aria-pressed", audioEnabled ? "true" : "false");
   ui.btnMute.textContent = `Sound: ${audioEnabled ? "On" : "Off"}`;
   if (audioEnabled && audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
   if (audioEnabled) beepChord();
+});
+
+ui.quizForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (state.mode !== "quiz" || !state.quiz) return;
+
+  const raw = (ui.quizAnswer.value || "").trim();
+  const user = Number.parseInt(raw, 10);
+  if (!Number.isFinite(user)) {
+    ui.quizFeedback.textContent = `Please enter a number. ${state.quiz.triesLeft} tries left.`;
+    ui.quizAnswer.focus();
+    return;
+  }
+
+  if (user === state.quiz.answer) {
+    ui.quizFeedback.textContent = "Correct!";
+    resumeFromQuiz();
+    return;
+  }
+
+  state.quiz.triesLeft -= 1;
+  beep(220, 80, "sawtooth", 0.05);
+
+  if (state.quiz.triesLeft <= 0) {
+    backToStart();
+    return;
+  }
+
+  ui.quizFeedback.textContent = `Not quite — try again. ${state.quiz.triesLeft} tries left.`;
+  ui.quizAnswer.select();
 });
 
 const palette = {
@@ -93,16 +142,18 @@ const palette = {
 };
 
 const state = {
-  mode: "title", // title | running | crashed
+  mode: "title", // title | running | quiz
   t: 0,
   score: 0,
   best: getBestScore(),
   scrollX: 0,
   speed: 120, // px/s
   speedMult: 1,
+  invuln: 0,
   input: {
     jumpQueued: false,
   },
+  quiz: null,
   player: {
     x: 90,
     y: 0,
@@ -116,10 +167,34 @@ const state = {
     pickups: [],
     particles: [],
     nextSpawnX: 0,
+    nextObstacleId: 1,
   },
 };
 
 ui.best.textContent = String(state.best | 0);
+
+function showOverlayTitle() {
+  ui.overlay.style.display = "grid";
+  ui.overlayTitle.textContent = "Super Morio";
+  ui.overlaySubtitle.textContent = "A tiny snowy jump-and-run on skis.";
+  ui.btnStart.textContent = "Start";
+
+  ui.overlayBodyTitle.hidden = false;
+  ui.overlayBodyQuiz.hidden = true;
+}
+
+function showOverlayQuiz() {
+  ui.overlay.style.display = "grid";
+  ui.overlayTitle.textContent = "Math Checkpoint";
+  ui.overlaySubtitle.textContent = "Solve the problem to keep skiing.";
+
+  ui.overlayBodyTitle.hidden = true;
+  ui.overlayBodyQuiz.hidden = false;
+}
+
+function hideOverlay() {
+  ui.overlay.style.display = "none";
+}
 
 function groundY(x, t) {
   return (
@@ -145,6 +220,7 @@ function resetRun() {
   state.scrollX = 0;
   state.speed = 120;
   state.speedMult = 1;
+  state.invuln = 0;
   state.player.y = groundY(state.player.x, 0);
   state.player.vy = 0;
   state.player.onGround = true;
@@ -152,9 +228,9 @@ function resetRun() {
   state.world.obstacles = [];
   state.world.pickups = [];
   state.world.particles = [];
-  state.input.jumpQueued = false;
-
   state.world.nextSpawnX = state.scrollX + BASE_W + 260;
+  state.input.jumpQueued = false;
+  state.quiz = null;
 
   for (let i = 0; i < 5; i++) {
     spawnAt(state.world.nextSpawnX);
@@ -165,21 +241,14 @@ function resetRun() {
 function startGame() {
   resetRun();
   state.mode = "running";
-  ui.overlay.style.display = "none";
-  ui.overlay.querySelector("h1").textContent = "Super Morio";
-  ui.overlay.querySelector(".muted").textContent = "A tiny snowy jump-and-run on skis.";
-  ui.btnStart.textContent = "Start";
+  hideOverlay();
   beepChord();
 }
 
-function crash() {
-  state.mode = "crashed";
-  state.player.crashFlash = 1;
-  ui.overlay.style.display = "grid";
-  ui.overlay.querySelector("h1").textContent = "Crash!";
-  ui.overlay.querySelector(".muted").textContent = "Press R to try again.";
-  ui.btnStart.textContent = "Restart";
-  beepCrash();
+function backToStart() {
+  resetRun();
+  state.mode = "title";
+  showOverlayTitle();
 }
 
 function spawnAt(x) {
@@ -196,8 +265,11 @@ function spawnAt(x) {
     return;
   }
 
+  const id = state.world.nextObstacleId++;
+
   if (r < 0.75) {
     state.world.obstacles.push({
+      id,
       kind: "tree",
       x,
       y: groundY(x, state.t),
@@ -208,6 +280,7 @@ function spawnAt(x) {
   }
 
   state.world.obstacles.push({
+    id,
     kind: "rock",
     x,
     y: groundY(x, state.t),
@@ -228,17 +301,81 @@ function emitPowder(x, y, n = 10) {
   }
 }
 
+function makeMathQuestion() {
+  // 12-year-old friendly: integer arithmetic.
+  const t = Math.random();
+
+  if (t < 0.34) {
+    const a = Math.floor(rand(12, 99));
+    const b = Math.floor(rand(10, 89));
+    return { q: `${a} + ${b} = ?`, a: a + b };
+  }
+
+  if (t < 0.67) {
+    const a = Math.floor(rand(40, 120));
+    const b = Math.floor(rand(10, 39));
+    return { q: `${a} − ${b} = ?`, a: a - b };
+  }
+
+  if (t < 0.88) {
+    const a = Math.floor(rand(3, 13));
+    const b = Math.floor(rand(3, 13));
+    return { q: `${a} × ${b} = ?`, a: a * b };
+  }
+
+  // Division with clean integer result.
+  const b = Math.floor(rand(2, 13));
+  const res = Math.floor(rand(2, 13));
+  const a = b * res;
+  return { q: `${a} ÷ ${b} = ?`, a: res };
+}
+
+function enterQuiz(obstacle) {
+  state.mode = "quiz";
+  state.quiz = {
+    triesLeft: 3,
+    obstacleId: obstacle?.id ?? null,
+    answer: null,
+    question: "",
+  };
+
+  showOverlayQuiz();
+  ui.quizFeedback.textContent = "";
+
+  const { q, a } = makeMathQuestion();
+  state.quiz.question = q;
+  state.quiz.answer = a;
+  ui.quizQuestion.textContent = q;
+
+  ui.quizAnswer.value = "";
+  setTimeout(() => ui.quizAnswer.focus(), 0);
+  beepCrash();
+}
+
+function resumeFromQuiz() {
+  const obstacleId = state.quiz?.obstacleId;
+  if (obstacleId != null) {
+    state.world.obstacles = state.world.obstacles.filter((o) => o.id !== obstacleId);
+  }
+
+  state.invuln = 1.0;
+  state.input.jumpQueued = false;
+  state.quiz = null;
+  state.mode = "running";
+  hideOverlay();
+  beepChord();
+}
+
 function update(dt) {
   state.t += dt;
 
   if (state.mode === "title") {
+    // Let the backdrop drift a bit.
     state.scrollX += dt * state.speed * 0.25;
-    if (keys.has("Space") || keys.has("Enter")) startGame();
     return;
   }
 
-  if (state.mode === "crashed") {
-    if (keys.has("KeyR")) startGame();
+  if (state.mode === "quiz") {
     return;
   }
 
@@ -251,8 +388,7 @@ function update(dt) {
   state.scrollX += dt * scrollSpeed;
   state.score += dt * (10 + state.speed * 0.03);
 
-  const jumpPressed = keys.has("Space") || keys.has("ArrowUp");
-  if (jumpPressed) state.input.jumpQueued = true;
+  if (state.invuln > 0) state.invuln = Math.max(0, state.invuln - dt);
 
   const px = state.scrollX + state.player.x;
   const gY = groundY(px, state.t);
@@ -281,7 +417,6 @@ function update(dt) {
     }
   }
 
-  if (!state.world.nextSpawnX) state.world.nextSpawnX = state.scrollX + BASE_W + 260;
   while (state.world.nextSpawnX < state.scrollX + BASE_W + 850) {
     spawnAt(state.world.nextSpawnX);
     state.world.nextSpawnX += rand(140, 260);
@@ -304,15 +439,18 @@ function update(dt) {
     }
   }
 
-  const playerHitY = state.player.y - 16;
-  for (const o of state.world.obstacles) {
-    const x = o.x - state.scrollX;
-    if (x < state.player.x - 10 || x > state.player.x + 24) continue;
-    const top = o.y - o.h;
-    const clearance = state.player.onGround ? 0 : 12;
-    if (playerHitY + clearance > top) {
-      crash();
-      return;
+  if (state.invuln <= 0) {
+    const playerHitY = state.player.y - 16;
+    for (const o of state.world.obstacles) {
+      const x = o.x - state.scrollX;
+      if (x < state.player.x - 10 || x > state.player.x + 24) continue;
+      const top = o.y - o.h;
+      const clearance = state.player.onGround ? 0 : 12;
+      if (playerHitY + clearance > top) {
+        // Pause on the exact moment of the mistake.
+        enterQuiz(o);
+        return;
+      }
     }
   }
 
@@ -341,7 +479,7 @@ function drawSky() {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, BASE_W, BASE_H);
 
-  ctx.fillStyle = "#d8f0ff";
+  ctx.fillStyle = palette.moon;
   ctx.globalAlpha = 0.85;
   ctx.beginPath();
   ctx.arc(320, 48, 18, 0, Math.PI * 2);
@@ -472,6 +610,7 @@ function drawPlayer() {
   ctx.translate(x, y - 16);
   ctx.rotate(lean);
 
+  // Skis.
   ctx.strokeStyle = "rgba(0,0,0,0.35)";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -485,16 +624,19 @@ function drawPlayer() {
   ctx.lineTo(16, 21);
   ctx.stroke();
 
+  // Head.
   ctx.fillStyle = "#ffe6cc";
   ctx.beginPath();
   ctx.arc(0, -6, 6, 0, Math.PI * 2);
   ctx.fill();
 
+  // Jacket + pants.
   ctx.fillStyle = "#ff3b5c";
   ctx.fillRect(-5, 0, 10, 14);
   ctx.fillStyle = "#0b1930";
   ctx.fillRect(-5, 12, 10, 8);
 
+  // Poles.
   ctx.strokeStyle = "rgba(255,255,255,0.5)";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -505,6 +647,14 @@ function drawPlayer() {
   ctx.moveTo(8, 8);
   ctx.lineTo(20, 20 - arm);
   ctx.stroke();
+
+  // Invulnerability shimmer.
+  if (state.invuln > 0) {
+    ctx.globalAlpha = 0.35 + 0.35 * Math.sin(state.t * 16);
+    ctx.fillStyle = "rgba(139, 214, 255, 0.5)";
+    ctx.fillRect(-7, -16, 14, 40);
+    ctx.globalAlpha = 1;
+  }
 
   ctx.restore();
 }
@@ -541,23 +691,16 @@ function render() {
   drawPlayer();
   drawParticles();
 
+  // Vignette.
   ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fillRect(0, 0, BASE_W, BASE_H);
 
-  if (state.player.crashFlash > 0) {
-    ctx.globalAlpha = state.player.crashFlash;
-    ctx.fillStyle = "rgba(255,70,120,0.25)";
-    ctx.fillRect(0, 0, BASE_W, BASE_H);
-    ctx.globalAlpha = 1;
-    state.player.crashFlash = Math.max(0, state.player.crashFlash - 0.9 * (1 / 60));
-  }
-
   if (state.mode === "title") {
     ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fillRect(10, 164, 200, 42);
+    ctx.fillRect(10, 164, 210, 42);
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
-    ctx.fillText("Tap / Press Space to start", 18, 186);
+    ctx.fillText("Tap / Press Enter to start", 18, 186);
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.fillText("Jump obstacles • Grab flags", 18, 202);
   }
@@ -573,4 +716,5 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+showOverlayTitle();
 requestAnimationFrame(loop);

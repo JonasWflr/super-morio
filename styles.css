@@ -195,3 +195,48 @@ summary {
   margin: 0 8px;
   opacity: 0.55;
 }
+
+.quiz {
+  margin-top: 10px;
+}
+
+.quiz__prompt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.quiz__q {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.quiz__form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.quiz__input {
+  flex: 1;
+  min-width: 160px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--ink);
+  font-weight: 650;
+  outline: none;
+}
+
+.quiz__input:focus {
+  border-color: rgba(139, 214, 255, 0.6);
+  box-shadow: 0 0 0 4px rgba(139, 214, 255, 0.15);
+}

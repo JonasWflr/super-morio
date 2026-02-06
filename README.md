@@ -7,12 +7,12 @@ Super Morio is a tiny, browser-based **jump & run** inspired by the NES-era feel
 - Collect flags for score
 - Speed ramps up over time
 - Works on desktop + mobile (tap to jump)
+- On mistakes: solve a quick math problem to continue
 
 ## Controls
 
 - Jump: `Space` / `↑` (or tap)
 - Speed: `←` / `→`
-- Restart after crash: `R`
 
 ## Run locally
 
