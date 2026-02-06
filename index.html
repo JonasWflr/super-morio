@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Super Morio</title>
+    <meta name="description" content="A snowy, cross-country skiing jump-and-run inspired by classic 8-bit platformers." />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__title">Super Morio</div>
+        <div class="brand__subtitle">Snowy XC Ski Jump &amp; Run</div>
+      </div>
+      <div class="hud" aria-live="polite">
+        <div class="hud__item">Score: <span id="score">0</span></div>
+        <div class="hud__item">Best: <span id="best">0</span></div>
+        <div class="hud__item">Speed: <span id="speed">1.0×</span></div>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="frame" role="application" aria-label="Super Morio game">
+        <canvas id="game" width="384" height="216"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="card">
+            <h1>Super Morio</h1>
+            <p class="muted">A tiny snowy jump-and-run on skis.</p>
+            <ul>
+              <li><kbd>Space</kbd> / <kbd>↑</kbd> to jump</li>
+              <li><kbd>←</kbd>/<kbd>→</kbd> to slow down / speed up</li>
+              <li><kbd>R</kbd> to restart after a crash</li>
+              <li>On touch: tap to jump</li>
+            </ul>
+            <div class="row">
+              <button id="btnStart" class="btn btn--primary">Start</button>
+              <button id="btnMute" class="btn" aria-pressed="false">Sound: Off</button>
+            </div>
+            <p class="muted small">Tip: hit ramps for longer jumps, grab flags, avoid trees &amp; rocks.</p>
+          </div>
+        </div>
+      </div>
+
+      <section class="help">
+        <details>
+          <summary>What is this?</summary>
+          <p>
+            Super Morio is a lightweight, single-file canvas game: keep skiing, jump obstacles,
+            collect flags, and survive as the pace ramps up.
+          </p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Made for GitHub Pages.</span>
+      <span class="sep">•</span>
+      <span>© You.</span>
+    </footer>
+
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>
