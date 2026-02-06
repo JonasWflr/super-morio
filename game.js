@@ -115,6 +115,7 @@ const state = {
     obstacles: [],
     pickups: [],
     particles: [],
+    nextSpawnX: 0,
   },
 };
 
@@ -153,7 +154,12 @@ function resetRun() {
   state.world.particles = [];
   state.input.jumpQueued = false;
 
-  for (let i = 0; i < 5; i++) spawnAhead(260 + i * 180);
+  state.world.nextSpawnX = state.scrollX + BASE_W + 260;
+
+  for (let i = 0; i < 5; i++) {
+    spawnAt(state.world.nextSpawnX);
+    state.world.nextSpawnX += 180;
+  }
 }
 
 function startGame() {
@@ -176,8 +182,7 @@ function crash() {
   beepCrash();
 }
 
-function spawnAhead(dist) {
-  const x = state.scrollX + BASE_W + dist;
+function spawnAt(x) {
   const r = Math.random();
 
   if (r < 0.45) {
@@ -276,12 +281,11 @@ function update(dt) {
     }
   }
 
-  const farthest = Math.max(
-    state.scrollX + BASE_W,
-    ...state.world.obstacles.map((o) => o.x),
-    ...state.world.pickups.map((p) => p.x),
-  );
-  while (farthest < state.scrollX + BASE_W + 850) spawnAhead(rand(140, 260));
+  if (!state.world.nextSpawnX) state.world.nextSpawnX = state.scrollX + BASE_W + 260;
+  while (state.world.nextSpawnX < state.scrollX + BASE_W + 850) {
+    spawnAt(state.world.nextSpawnX);
+    state.world.nextSpawnX += rand(140, 260);
+  }
 
   const left = state.scrollX - 80;
   state.world.obstacles = state.world.obstacles.filter((o) => o.x > left);
